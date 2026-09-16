@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة سباق الحفظ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --page:#E4DAC4;
+    --sand:#EDE4D3;
+    --sand-deep:#DCD0B6;
+    --asphalt:#312F2B;
+    --asphalt-2:#3B3935;
+    --ink:#28251F;
+    --gold:#C9A15A;
+    --sage:#6F8E68;
+    --brick:#B3492F;
+    --line:#EDE4D3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--page);
+    color:var(--ink);
+    font-family:'Tajawal',sans-serif;
+    padding:16px 14px 50px;
+  }
+  h1,h2,h3{font-family:'Almarai',sans-serif;}
+  .wrap{max-width:720px;margin:0 auto;}
+
+  /* ---------- top info zone (separate from the board) ---------- */
+  .info-zone{margin-bottom:20px;}
+  .board-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:8px;
+  }
+  .board-header h1{
+    font-size:24px;
+    font-weight:800;
+    margin:0;
+  }
+  .gear{
+    background:var(--asphalt);
+    color:#fff;
+    border:none;
+    width:36px;height:36px;
+    border-radius:10px;
+    font-size:16px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .status-strip{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:#fff8ec;
+    border:1px solid var(--sand-deep);
+    border-radius:11px;
+    padding:9px 12px;
+    font-size:12px;
+    color:#5b5648;
+    gap:8px;
+  }
+  .status-left{display:flex;align-items:center;gap:6px;}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--sage);flex-shrink:0;}
+  .dot.err{background:var(--brick);}
+  .dot.wait{background:var(--gold);}
+  .week-note{white-space:nowrap;font-weight:700;color:var(--ink);}
+
+  .settings{
+    background:#fff8ec;
+    border:1px solid var(--sand-deep);
+    border-radius:14px;
+    padding:14px;
+    margin-top:10px;
+    display:none;
+  }
+  .settings.open{display:block;}
+  .settings h2{font-size:14px;margin:0 0 8px;}
+  .settings .hint{font-size:12px;color:#6b6656;line-height:1.85;margin:0 0 10px;}
+  .field{margin-bottom:10px;}
+  .field label{display:block;font-size:12px;color:#5b5648;margin-bottom:4px;}
+  .field input[type=text]{
+    width:100%;border:1px solid var(--sand-deep);border-radius:9px;
+    padding:9px 10px;font-family:'Tajawal',sans-serif;font-size:13px;
+    background:#fff;color:var(--ink);
+  }
+  .points-grid{
+    display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0;
+  }
+  .point-field{background:var(--sand);border-radius:10px;padding:7px;text-align:center;}
+  .point-field label{font-size:11.5px;margin-bottom:4px;display:block;}
+  .point-field input{
+    width:100%;text-align:center;border:1px solid var(--sand-deep);border-radius:7px;
+    padding:5px 2px;font-weight:700;font-size:14px;background:#fff;
+  }
+  .row{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn{
+    flex:1;border:none;border-radius:10px;padding:10px 12px;
+    font-family:'Tajawal',sans-serif;font-weight:700;font-size:13.5px;
+    cursor:pointer;color:#fff;background:var(--asphalt);
+  }
+  .btn.secondary{background:var(--sage);}
+
+  /* ---------- the board (clearly separate section) ---------- */
+  .board{
+    background:var(--asphalt);
+    border-radius:20px;
+    padding:16px 14px 18px;
+    box-shadow:0 10px 26px rgba(40,37,31,.18);
+    position:relative;
+  }
+  .board::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius:20px;
+    padding:2px;
+    background:linear-gradient(135deg, var(--gold), transparent 40%);
+    -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite:xor;
+    mask-composite:exclude;
+    pointer-events:none;
+    opacity:.5;
+  }
+  .board-title{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:12px;
+    padding:0 2px;
+  }
+  .board-title span.finish-label{
+    color:var(--gold);
+    font-size:11.5px;
+    font-weight:700;
+  }
+  .board-title h2{
+    color:#fff;
+    font-size:15px;
+    margin:0;
+  }
+
+  .lane-card{
+    background:var(--asphalt-2);
+    border-radius:13px;
+    padding:9px 11px 11px;
+    margin-bottom:9px;
+  }
+  .lane-top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:5px;padding:0 2px;}
+  .lane-name{color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px;}
+  .medal{font-size:15px;}
+  .lane-score{color:var(--gold);font-weight:800;font-size:13.5px;font-family:'Almarai',sans-serif;}
+  .lane-detail{color:#a9a496;font-size:10.5px;margin-bottom:7px;padding:0 2px;}
+  .track{
+    position:relative;height:38px;background:#2b2925;border-radius:8px;
+    background-image: repeating-linear-gradient(90deg, var(--line) 0 12px, transparent 12px 26px);
+    background-size:100% 2px;background-position:center;background-repeat:repeat-x;
+  }
+  .flag{position:absolute;right:2px;top:50%;transform:translateY(-50%);font-size:19px;}
+  .start-mark{position:absolute;left:2px;top:6px;bottom:6px;width:2px;background:rgba(237,228,211,.3);}
+  .car{
+    position:absolute;top:50%;transform:translateY(-50%);font-size:23px;
+    transition:right 900ms cubic-bezier(.22,.9,.3,1.1);
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.4));
+  }
+
+  .empty{text-align:center;padding:44px 14px;}
+  .empty .big{font-size:38px;margin-bottom:10px;}
+  .empty p{font-size:13px;line-height:1.8;color:#c9c5ba;margin:0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="info-zone">
+    <div class="board-header">
+      <h1>لوحة سباق الحفظ</h1>
+      <button class="gear" id="gearBtn" aria-label="الإعدادات">⚙️</button>
+    </div>
+    <div class="status-strip">
+      <span class="status-left"><span class="dot wait" id="statusDot"></span><span id="statusText">جاري الاتصال بالجدول...</span></span>
+      <span class="week-note" id="weekNote"></span>
+    </div>
+
+    <div class="settings" id="settingsPanel">
+      <h2>ربط جدول قوقل شيت</h2>
+      <p class="hint">
+        الإدخال يصير بشكل منفصل تمامًا داخل جدول قوقل شيت (كل يوم تحدد: حفظ، بدري، معتذر، أو متأخر لكل طالب).
+        هذي اللوحة بس تعرض السباق وتقرأ الجدول تلقائيًا كل 20 ثانية.<br><br>
+        الجدول مربوط افتراضيًا بالجدول اللي سويناه لك في درايف. عشان تشتغل القراءة، افتح الجدول ← مشاركة ← غيّرها إلى «أي شخص لديه الرابط: قارئ» (مرة وحدة بس).
+      </p>
+      <div class="field">
+        <label>رابط جدول قوقل شيت</label>
+        <input type="text" id="sheetUrl" placeholder="https://docs.google.com/spreadsheets/d/....">
+      </div>
+      <div class="row">
+        <button class="btn" id="connectBtn">ربط وتحديث الآن</button>
+      </div>
+
+      <h2 style="margin-top:16px;">نقاط كل حالة (خط النهاية كل خميس)</h2>
+      <div class="points-grid">
+        <div class="point-field"><label>حفظ</label><input type="number" id="pHafedh" value="3" step="0.5"></div>
+        <div class="point-field"><label>بدري</label><input type="number" id="pBidri" value="2" step="0.5"></div>
+        <div class="point-field"><label>معتذر</label><input type="number" id="pMu3tazer" value="1" step="0.5"></div>
+        <div class="point-field"><label>متأخر</label><input type="number" id="pMutaakhir" value="1" step="0.5"></div>
+      </div>
+      <div class="row">
+        <button class="btn secondary" id="copyLinkBtn">نسخ رابط اللوحة (لحفظه كصفحة رئيسية)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="board-title">
+      <h2>المضمار 🏁</h2>
+      <span class="finish-label" id="finishLabel">خط النهاية: الخميس</span>
+    </div>
+    <div id="trackSection">
+      <div class="empty">
+        <div class="big">🏎️</div>
+        <p>جاري تحميل بيانات الأسبوع...</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let rawRows = [];
+let sheetId = '1OqT0YN4VmKyP_zZQ3eeFxqvT_dC5AEw27rV6NCB-nAQ'; // الجدول المربوط افتراضيًا
+let sheetGid = '0';
+let refreshTimer = null;
+
+const params = new URLSearchParams(location.search);
+const gearBtn = document.getElementById('gearBtn');
+const settingsPanel = document.getElementById('settingsPanel');
+const sheetUrlInput = document.getElementById('sheetUrl');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const weekNote = document.getElementById('weekNote');
+const pHafedh = document.getElementById('pHafedh');
+const pBidri = document.getElementById('pBidri');
+const pMu3tazer = document.getElementById('pMu3tazer');
+const pMutaakhir = document.getElementById('pMutaakhir');
+
+gearBtn.onclick = () => settingsPanel.classList.toggle('open');
+
+function extractSheetId(url){ const m = url.match(/\/d\/([a-zA-Z0-9-_]+)/); return m ? m[1] : null; }
+function extractGid(url){ const m = url.match(/[?#&]gid=([0-9]+)/); return m ? m[1] : '0'; }
+function setStatus(state, text){
+  statusDot.className = 'dot' + (state === 'err' ? ' err' : state === 'wait' ? ' wait' : '');
+  statusText.textContent = text;
+}
+function buildCsvUrl(){ return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${sheetGid}`; }
+
+function syncUrlParams(){
+  const q = new URLSearchParams();
+  q.set('sid', sheetId); q.set('gid', sheetGid);
+  q.set('h', pHafedh.value); q.set('b', pBidri.value);
+  q.set('e', pMu3tazer.value); q.set('m', pMutaakhir.value);
+  history.replaceState(null, '', location.pathname + '?' + q.toString());
+}
+
+document.getElementById('connectBtn').onclick = () => {
+  const url = sheetUrlInput.value.trim();
+  const id = extractSheetId(url);
+  if(!id){ setStatus('err', 'ما قدرت ألقط رابط الجدول — تأكد إنه رابط قوقل شيت صحيح.'); return; }
+  sheetId = id; sheetGid = extractGid(url) || '0';
+  syncUrlParams(); fetchData();
+  if(refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(fetchData, 20000);
+};
+
+document.getElementById('copyLinkBtn').onclick = () => {
+  navigator.clipboard.writeText(location.href).then(()=>{
+    const btn = document.getElementById('copyLinkBtn');
+    const old = btn.textContent;
+    btn.textContent = 'تم النسخ ✓';
+    setTimeout(()=>btn.textContent = old, 1500);
+  });
+};
+
+[pHafedh, pBidri, pMu3tazer, pMutaakhir].forEach(el=>{
+  el.addEventListener('input', ()=>{ syncUrlParams(); render(); });
+});
+
+function fetchData(){
+  if(!sheetId) return;
+  setStatus('wait', 'يتم التحديث...');
+  fetch(buildCsvUrl())
+    .then(r=>{ if(!r.ok) throw new Error('bad'); return r.text(); })
+    .then(text=>{
+      const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
+      rawRows = parsed.data;
+      const time = new Date().toLocaleTimeString('ar-SA', {hour:'2-digit', minute:'2-digit'});
+      setStatus('ok', `متصل — آخر تحديث ${time}`);
+      render();
+    })
+    .catch(()=>{
+      setStatus('err', 'تعذر جلب بيانات الجدول. تأكد أن مشاركته «أي شخص لديه الرابط: قارئ».');
+    });
+}
+
+function findKey(row, candidates){
+  const keys = Object.keys(row);
+  for(const k of keys){
+    const norm = (k || '').toString().trim();
+    for(const c of candidates){ if(norm.includes(c)) return k; }
+  }
+  return null;
+}
+function isTruthy(val){
+  if(val === null || val === undefined) return false;
+  const s = val.toString().trim().toLowerCase();
+  if(s === '') return false;
+  if(['نعم','ص','1','true','x','✓','yes'].includes(s)) return true;
+  const n = Number(s);
+  if(!isNaN(n) && n > 0) return true;
+  return false;
+}
+function parseDate(s){
+  if(!s) return null;
+  s = s.toString().trim();
+  let d = new Date(s);
+  if(!isNaN(d.getTime())) return d;
+  return null;
+}
+function getWeekRange(ref){
+  const day = ref.getDay();
+  const sunday = new Date(ref);
+  sunday.setDate(ref.getDate() - day);
+  sunday.setHours(0,0,0,0);
+  const thursday = new Date(sunday);
+  thursday.setDate(sunday.getDate()+4);
+  thursday.setHours(23,59,59,999);
+  return {start:sunday, end:thursday};
+}
+
+function computeStudents(){
+  const students = {};
+  if(rawRows.length === 0) return {students, inWeekCount:0};
+  const nameKey = findKey(rawRows[0], ['اسم الطالب','الطالب','الاسم','name']);
+  const dateKey = findKey(rawRows[0], ['التاريخ','تاريخ','date']);
+  const hafedhKey = findKey(rawRows[0], ['حفظ']);
+  const bidriKey = findKey(rawRows[0], ['بدري']);
+  const mu3tazerKey = findKey(rawRows[0], ['معتذر']);
+  const mutaakhirKey = findKey(rawRows[0], ['متأخر','تأخر']);
+
+  const {start, end} = getWeekRange(new Date());
+  let inWeekCount = 0;
+
+  rawRows.forEach(row=>{
+    const name = nameKey ? (row[nameKey]||'').toString().trim() : '';
+    if(!name) return;
+
+    if(dateKey){
+      const d = parseDate(row[dateKey]);
+      if(d && (d < start || d > end)) return; // outside current week, skip
+      if(d) inWeekCount++;
+    }
+
+    if(!students[name]) students[name] = {hafedh:0, bidri:0, mu3tazer:0, mutaakhir:0};
+    if(hafedhKey && isTruthy(row[hafedhKey])) students[name].hafedh++;
+    if(bidriKey && isTruthy(row[bidriKey])) students[name].bidri++;
+    if(mu3tazerKey && isTruthy(row[mu3tazerKey])) students[name].mu3tazer++;
+    if(mutaakhirKey && isTruthy(row[mutaakhirKey])) students[name].mutaakhir++;
+  });
+  return {students, inWeekCount};
+}
+
+const carEmojis = ['🚗','🚙','🚕','🏎️','🚓','🚐','🚘','🛻'];
+
+function updateWeekNote(){
+  const {start, end} = getWeekRange(new Date());
+  const now = new Date();
+  const opts = {day:'numeric', month:'numeric'};
+  if(now <= end){
+    const daysLeft = Math.ceil((end - now) / 86400000);
+    weekNote.textContent = `باقي ${daysLeft} يوم على الخميس`;
+  } else {
+    weekNote.textContent = `انتهى سباق الأسبوع — يبدأ من جديد الأحد`;
+  }
+}
+
+function render(){
+  updateWeekNote();
+  const section = document.getElementById('trackSection');
+  const {students} = computeStudents();
+  const names = Object.keys(students);
+
+  if(names.length === 0){
+    section.innerHTML = `<div class="empty"><div class="big">🏎️</div><p>ما فيه بيانات لهذا الأسبوع بعد. أول تسجيل يحرّك السيارات.</p></div>`;
+    return;
+  }
+
+  const P = {
+    hafedh: Number(pHafedh.value) || 0,
+    bidri: Number(pBidri.value) || 0,
+    mu3tazer: Number(pMu3tazer.value) || 0,
+    mutaakhir: Number(pMutaakhir.value) || 0,
+  };
+  const list = names.map(name=>{
+    const s = students[name];
+    const score = s.hafedh*P.hafedh + s.bidri*P.bidri + s.mu3tazer*P.mu3tazer + s.mutaakhir*P.mutaakhir;
+    return {name, ...s, score};
+  }).sort((a,b)=>b.score - a.score);
+
+  // trackMax = the ideal week: memorize every day + best attendance every day, over 5 days (Sun–Thu)
+  const bestAttendance = Math.max(P.bidri, P.mu3tazer, P.mutaakhir, 0);
+  const trackMax = Math.max((P.hafedh + bestAttendance) * 5, 1);
+  const medals = ['🥇','🥈','🥉'];
+
+  section.innerHTML = list.map((s, i)=>{
+    const progress = Math.max(0, Math.min(96, (s.score/trackMax)*96));
+    const car = carEmojis[i % carEmojis.length];
+    const medal = medals[i] ? `<span class="medal">${medals[i]}</span>` : '';
+    return `
+      <div class="lane-card">
+        <div class="lane-top">
+          <span class="lane-name">${medal}${s.name}</span>
+          <span class="lane-score">${s.score} نقطة</span>
+        </div>
+        <div class="lane-detail">حفظ: ${s.hafedh} · بدري: ${s.bidri} · معتذر: ${s.mu3tazer} · متأخر: ${s.mutaakhir}</div>
+        <div class="track">
+          <div class="start-mark"></div>
+          <span class="flag">🏁</span>
+          <span class="car" style="right:${progress}%">${car}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+(function boot(){
+  const sid = params.get('sid');
+  if(sid){
+    sheetId = sid;
+    sheetGid = params.get('gid') || '0';
+    if(params.get('h') !== null) pHafedh.value = params.get('h');
+    if(params.get('b') !== null) pBidri.value = params.get('b');
+    if(params.get('e') !== null) pMu3tazer.value = params.get('e');
+    if(params.get('m') !== null) pMutaakhir.value = params.get('m');
+  }
+  sheetUrlInput.value = `https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=${sheetGid}`;
+  updateWeekNote();
+  fetchData();
+  refreshTimer = setInterval(fetchData, 20000);
+})();
+</script>
+</body>
+</html>
